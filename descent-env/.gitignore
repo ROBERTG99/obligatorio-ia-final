@@ -1,0 +1,7 @@
+# Ignorar archivos grandes de modelos entrenados
+*.pkl
+models_*/
+__pycache__/
+*.pyc
+.DS_Store
+*.log

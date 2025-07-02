@@ -1,0 +1,51 @@
+# Archivos grandes de modelos entrenados
+*.pkl
+models_*/
+**/models_*/
+
+# Cache de Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos del sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.temp
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+.env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Archivos de configuración IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de resultados que pueden ser grandes
+*.png
+*.jpg
+*.gif
+*.svg
+results/
+output/
+
+# Archivos específicos del proyecto que pueden ser grandes
+*.pdf

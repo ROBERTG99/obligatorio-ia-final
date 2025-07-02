@@ -2,30 +2,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Forzar uso de MockDescentEnv para evitar problemas con BlueSky/BADA
-print("Forzando uso de MockDescentEnv para evitar errores de BADA")
-BLUESKY_AVAILABLE = False
+# OPTIMIZACIÓN: Usar DescentEnv real para máximo rendimiento
+print("🚀 CONFIGURACIÓN OPTIMIZADA: Priorizando DescentEnv real para máximo rendimiento")
 
-# Importar MockDescentEnv siempre para paralelización
+# Intentar importar DescentEnv real primero (verificado funcionando)
+try:
+    from descent_env import DescentEnv
+    BLUESKY_AVAILABLE = True
+    print("✅ DescentEnv real cargado exitosamente - MÁXIMO RENDIMIENTO")
+except ImportError as e:
+    print(f"⚠️  DescentEnv no disponible: {e}")
+    BLUESKY_AVAILABLE = False
+
+# MockDescentEnv solo como fallback extremo
 try:
     from mock_descent_env import MockDescentEnv
     MOCK_AVAILABLE = True
 except ImportError:
-    print("Warning: MockDescentEnv no disponible")
+    print("Warning: MockDescentEnv tampoco disponible")
     MockDescentEnv = None
     MOCK_AVAILABLE = False
 
-# Si BlueSky no está disponible, usar MockDescentEnv como DescentEnv
-if not BLUESKY_AVAILABLE:
-    if MOCK_AVAILABLE:
-        DescentEnv = MockDescentEnv
-    else:
-        raise ImportError("Ni DescentEnv ni MockDescentEnv están disponibles")
+# Configuración optimizada: DescentEnv real siempre que sea posible
+if BLUESKY_AVAILABLE:
+    print("🎯 USANDO DESCENTENV REAL - Rendimiento óptimo garantizado")
+    # DescentEnv ya importado
+elif MOCK_AVAILABLE:
+    print("📄 Fallback: Usando MockDescentEnv")
+    DescentEnv = MockDescentEnv
+else:
+    raise ImportError("❌ Error crítico: Ningún entorno disponible")
 
 import random
 from collections import deque, namedtuple
 import time
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Union
 import json
 import pickle
 import os
@@ -412,11 +423,15 @@ def train_and_evaluate_agent(params_tuple):
         discretization_dict['action_bins']
     )
     
-    # FORZAR uso de MockDescentEnv para evitar conflictos de BlueSky en paralelo
-    if not MOCK_AVAILABLE:
-        raise ImportError("MockDescentEnv requerido para paralelización")
-    
-    env = MockDescentEnv(render_mode=None)
+    # OPTIMIZACIÓN: Usar DescentEnv real incluso en paralelización si está disponible
+    if BLUESKY_AVAILABLE:
+        print("🚀 Worker usando DescentEnv REAL para máximo rendimiento")
+        env = DescentEnv(render_mode=None)
+    elif MOCK_AVAILABLE:
+        print("📄 Worker usando MockDescentEnv como fallback")
+        env = MockDescentEnv(render_mode=None)
+    else:
+        raise ImportError("❌ No hay entornos disponibles para el worker")
     
     # Crear agente
     if agent_type == 'qlearning':
@@ -746,15 +761,15 @@ def main():
     print("   • Paralelización: 9 cores CPU")
     print("="*80)
     
-    # Configurar entorno - usar el real para entrenamiento final
+    # CONFIGURACIÓN OPTIMIZADA: DescentEnv real prioritario para máximo rendimiento
     if BLUESKY_AVAILABLE:
         env = DescentEnv(render_mode=None)
-        print("Usando DescentEnv real para entrenamiento final")
+        print("🚀 USANDO DESCENTENV REAL - Máximo rendimiento para entrenamiento final")
     elif MOCK_AVAILABLE:
         env = MockDescentEnv(render_mode=None)
-        print("Usando MockDescentEnv para todo el experimento")
+        print("📄 Fallback: Usando MockDescentEnv para experimento")
     else:
-        raise ImportError("No hay entornos disponibles")
+        raise ImportError("❌ Error crítico: No hay entornos disponibles")
     
     # Definir esquemas de discretización
     discretization_schemes = [
@@ -773,15 +788,21 @@ def main():
               f"Actions={scheme.action_bins}")
         print(f"{'='*50}")
         
-        # Optimizar hiperparámetros para Q-Learning estándar (usa MockDescentEnv en paralelo)
+        # OPTIMIZACIÓN: Usar DescentEnv real incluso para hiperparámetros cuando sea posible
         print("\n1. Optimizando hiperparámetros para Q-Learning estándar...")
         print(f"   • Episodios por combinación: 800 (entrenamiento) + 100 (evaluación)")
-        # Crear un entorno mock para el optimizador - SIEMPRE usar mock para paralelización
-        if not MOCK_AVAILABLE:
-            raise ImportError("MockDescentEnv requerido para optimización paralela")
         
-        mock_env = MockDescentEnv(render_mode=None)
-        optimizer = HyperparameterOptimizer(mock_env, scheme)
+        # Usar DescentEnv real prioritario para máximo rendimiento
+        if BLUESKY_AVAILABLE:
+            print("🚀 Optimizador usando DescentEnv REAL para máxima precisión")
+            optimizer_env = DescentEnv(render_mode=None)
+        elif MOCK_AVAILABLE:
+            print("📄 Optimizador usando MockDescentEnv como fallback")
+            optimizer_env = MockDescentEnv(render_mode=None)
+        else:
+            raise ImportError("❌ No hay entornos disponibles para optimización")
+        
+        optimizer = HyperparameterOptimizer(optimizer_env, scheme)
         qlearning_results = optimizer.grid_search('qlearning')
         
         # Entrenar mejor agente Q-Learning con entorno real

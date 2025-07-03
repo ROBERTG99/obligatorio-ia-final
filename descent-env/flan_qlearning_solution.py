@@ -502,12 +502,10 @@ class HyperparameterOptimizer:
         print(f"Probando {total_combinations} combinaciones de hiperparámetros con paralelización...")
         
         # OPTIMIZACIÓN 10K: Usar paralelización balanceada para evitar sobrecarga
-        cpu_count = psutil.cpu_count(logical=True)
-        if cpu_count is not None:
-            num_cores = max(1, min(8, cpu_count))  # Máximo 8 cores para evitar sobrecarga
-        else:
-            num_cores = 2
-        print(f"⚡ PARALELIZACIÓN OPTIMIZADA: Usando {num_cores} cores (de {cpu_count} disponibles)")
+        cpu_count = psutil.cpu_count(logical=True) or os.cpu_count()
+        # Nuevas reglas: usar TODOS los cores lógicos disponibles, con fallback a 2
+        num_cores = cpu_count if cpu_count and cpu_count > 0 else 2
+        print(f"⚡ PARALELIZACIÓN OPTIMIZADA: Usando TODOS los {num_cores} cores disponibles")
         
         # Generar todas las combinaciones
         import itertools

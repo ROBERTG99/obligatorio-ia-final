@@ -346,7 +346,7 @@ def train_and_evaluate_optimized(params_tuple):
             next_obs, reward, done, _, _ = env.step(np.array([action]))
             next_state = discretization.get_state(next_obs)
             
-            agent.update(state, action, reward, next_state, done, next_obs)
+            agent.update(state, action, reward, next_state, bool(done), next_obs)
             
             total_reward += reward
             state = next_state
@@ -416,8 +416,9 @@ def main_optimized():
     print(f"🔍 PROBANDO {len(param_grid)} CONFIGURACIONES OPTIMIZADAS...")
     
     # Paralelización optimizada
-    cpu_count = psutil.cpu_count(logical=True)
-    num_cores = min(4, cpu_count or 2)  # Limitar para estabilidad
+    cpu_count = psutil.cpu_count(logical=True) or os.cpu_count()
+    # Utilizar todos los cores lógicos disponibles para la búsqueda en paralelo
+    num_cores = cpu_count if cpu_count and cpu_count > 0 else 2
     
     tasks = [(params, {}) for params in param_grid]
     
@@ -461,6 +462,10 @@ def main_optimized():
     print("📊 RESULTADOS FINALES")
     print("="*80)
     
+    if best_config is None:
+        print("⚠️  No se encontró una configuración válida durante la búsqueda.")
+        return None
+
     print(f"🏆 MEJOR CONFIGURACIÓN:")
     print(f"   • Parámetros: {best_config['params']}")
     print(f"   • Score promedio: {best_config['score']:.2f}")

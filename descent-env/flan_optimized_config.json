@@ -1,0 +1,51 @@
+{
+  "experiment_name": "FLAN_OPTIMIZED",
+  "description": "Versi\u00f3n optimizada del experimento FLAN para reducir tiempo de ejecuci\u00f3n",
+  "discretization_schemes": [
+    {
+      "name": "Media",
+      "altitude_bins": 25,
+      "velocity_bins": 25,
+      "target_alt_bins": 25,
+      "runway_dist_bins": 25,
+      "action_bins": 10,
+      "justification": "Esquema balanceado que ofrece buena precisi\u00f3n sin exceso computacional"
+    }
+  ],
+  "hyperparameter_grid": {
+    "learning_rate": [
+      0.3,
+      0.4
+    ],
+    "discount_factor": [
+      0.98,
+      0.99
+    ],
+    "epsilon": [
+      0.2,
+      0.3
+    ],
+    "use_double_q": [
+      true
+    ],
+    "use_reward_shaping": [
+      true
+    ]
+  },
+  "training_episodes": {
+    "hyperparameter_search": 300,
+    "hyperparameter_evaluation": 50,
+    "final_training": 2000,
+    "final_evaluation": 200
+  },
+  "parallelization": {
+    "use_all_cores": false,
+    "cores_to_use": "half_available",
+    "justification": "Evitar sobrecarga del sistema"
+  },
+  "environment_strategy": {
+    "hyperparameter_search": "MockDescentEnv",
+    "final_training": "DescentEnv",
+    "justification": "Mock para velocidad en b\u00fasqueda, real para entrenamiento final"
+  }
+}

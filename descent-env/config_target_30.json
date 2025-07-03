@@ -1,0 +1,39 @@
+{
+  "experiment_name": "FLAN_Target_30_Optimized",
+  "objective": -30,
+  "discretization": {
+    "scheme": "Fina",
+    "altitude_bins": 40,
+    "velocity_bins": 40,
+    "target_alt_bins": 40,
+    "runway_dist_bins": 40,
+    "action_bins": 20
+  },
+  "hyperparameters": {
+    "learning_rate_range": [
+      0.7,
+      0.8,
+      0.9
+    ],
+    "discount_factor": 0.999,
+    "epsilon_start": 0.95,
+    "epsilon_end": 0.01,
+    "epsilon_decay_episodes": 2000,
+    "use_double_q": true,
+    "use_reward_shaping": true,
+    "aggressive_reward_shaping": true
+  },
+  "training": {
+    "hyperparameter_search_episodes": 500,
+    "final_training_episodes": 8000,
+    "evaluation_episodes": 500,
+    "early_stopping": true,
+    "target_score": -30
+  },
+  "reward_shaping": {
+    "precision_bonus_multiplier": 10,
+    "perfect_landing_bonus": 1000,
+    "improvement_bonus_multiplier": 200,
+    "error_penalty_multiplier": 500
+  }
+}

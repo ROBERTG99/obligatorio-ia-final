@@ -1,0 +1,62 @@
+{
+  "experiment_name": "FLAN_10K_OPTIMIZED",
+  "description": "Experimento FLAN optimizado para ~10,000 episodios",
+  "target_episodes": 10000,
+  "discretization_schemes": [
+    {
+      "name": "Media",
+      "altitude_bins": 25,
+      "velocity_bins": 25,
+      "target_alt_bins": 25,
+      "runway_dist_bins": 25,
+      "action_bins": 10,
+      "justification": "Esquema balanceado - buen compromiso precisi\u00f3n/velocidad"
+    }
+  ],
+  "hyperparameter_grid": {
+    "learning_rate": [
+      0.3,
+      0.4
+    ],
+    "discount_factor": [
+      0.98,
+      0.99
+    ],
+    "epsilon": [
+      0.2,
+      0.3
+    ],
+    "use_double_q": [
+      true
+    ],
+    "use_reward_shaping": [
+      true
+    ]
+  },
+  "training_episodes": {
+    "hyperparameter_search": 400,
+    "hyperparameter_evaluation": 50,
+    "final_training": 4500,
+    "final_evaluation": 800
+  },
+  "parallelization": {
+    "strategy": "ray_multiprocessing",
+    "cpu_cores": "all_available",
+    "max_concurrent_trials": 8,
+    "batch_size": 2,
+    "justification": "Ray m\u00e1s eficiente que GPU para Q-Learning discreto"
+  },
+  "environment_strategy": {
+    "hyperparameter_search": "MockDescentEnv",
+    "final_training": "DescentEnv",
+    "justification": "Mock para velocidad en b\u00fasqueda, real para resultado final"
+  },
+  "gpu_considerations": {
+    "q_learning_benefit": "BAJO - operaciones de tabla, no intensivas",
+    "environment_benefit": "MEDIO - puede acelerar simulaciones complejas",
+    "evaluation_benefit": "ALTO - paralelizaci\u00f3n masiva de evaluaciones",
+    "recommendation": "CPU paralelizado es m\u00e1s efectivo para este problema espec\u00edfico"
+  },
+  "calculated_episodes": 8500,
+  "estimated_time_minutes": 106.25
+}

@@ -107,8 +107,8 @@ def demo_heuristic_evaluation():
     # Evaluar heurísticas
     pieces = agent.env.board_size ** 2
     moves = len(agent.get_valid_actions(board))
-    connectivity = agent._calculate_connectivity(board)
-    center = agent._calculate_center_control(board)
+    connectivity = agent._calculate_advanced_connectivity(board)
+    center = agent._calculate_strategic_control(board)
     
     print(f"\nHeurísticas del estado inicial:")
     print(f"- Piezas restantes: {pieces}")
@@ -128,8 +128,8 @@ def demo_heuristic_evaluation():
     
     pieces = agent.env.board_size ** 2 - 3
     moves = len(agent.get_valid_actions(board))
-    connectivity = agent._calculate_connectivity(board)
-    center = agent._calculate_center_control(board)
+    connectivity = agent._calculate_advanced_connectivity(board)
+    center = agent._calculate_strategic_control(board)
     
     print(f"\nHeurísticas después del movimiento:")
     print(f"- Piezas restantes: {pieces}")

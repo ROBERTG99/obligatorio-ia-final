@@ -240,15 +240,14 @@ def main():
     print("="*60)
     print("DEMO FLAN - Q-Learning para Control de Descenso de Aeronave")
     print("="*60)
+    print("⚡ VERSIÓN DEMO RÁPIDA: Configuración reducida para demostración")
     
     # Configurar entorno
     env = DescentEnv(render_mode=None)
     
-    # Definir discretizaciones
+    # Definir discretizaciones (REDUCIDO: solo una discretización)
     discretizations = [
-        SimpleDiscretization("Gruesa", bins=5),
-        SimpleDiscretization("Media", bins=10),
-        SimpleDiscretization("Fina", bins=15)
+        SimpleDiscretization("Demo", bins=8)  # Solo una discretización moderada
     ]
     
     results = {}
@@ -258,24 +257,24 @@ def main():
         print(f"Probando discretización: {discretization.name} ({discretization.bins} bins)")
         print(f"{'='*40}")
         
-        # Q-Learning estándar
+        # Q-Learning estándar (REDUCIDO: 20 episodios en lugar de 150)
         print("\n1. Entrenando Q-Learning estándar...")
-        ql_agent = SimpleQLearningAgent(discretization, learning_rate=0.1, epsilon=0.2)
-        ql_rewards = train_agent(env, ql_agent, discretization, episodes=150, verbose=True)
+        ql_agent = SimpleQLearningAgent(discretization, learning_rate=0.2, epsilon=0.3)
+        ql_rewards = train_agent(env, ql_agent, discretization, episodes=20, verbose=True)
         
         print("Evaluando Q-Learning estándar...")
-        ql_eval = evaluate_agent(env, ql_agent, discretization, num_episodes=30)
+        ql_eval = evaluate_agent(env, ql_agent, discretization, num_episodes=10)  # REDUCIDO: 10 en lugar de 30
         
-        # Stochastic Q-Learning
+        # Stochastic Q-Learning (REDUCIDO: 20 episodios en lugar de 150)
         print("\n2. Entrenando Stochastic Q-Learning...")
         stoch_agent = SimpleStochasticQLearningAgent(discretization, 
-                                                    learning_rate=0.1, 
-                                                    epsilon=0.2, 
+                                                    learning_rate=0.2, 
+                                                    epsilon=0.3, 
                                                     sample_size=3)
-        stoch_rewards = train_agent(env, stoch_agent, discretization, episodes=150, verbose=True)
+        stoch_rewards = train_agent(env, stoch_agent, discretization, episodes=20, verbose=True)
         
         print("Evaluando Stochastic Q-Learning...")
-        stoch_eval = evaluate_agent(env, stoch_agent, discretization, num_episodes=30)
+        stoch_eval = evaluate_agent(env, stoch_agent, discretization, num_episodes=10)  # REDUCIDO: 10 en lugar de 30
         
         # Guardar resultados
         results[discretization.name] = {
@@ -289,8 +288,26 @@ def main():
             }
         }
     
-    # Generar reporte
-    generate_demo_report(results)
+    # Generar reporte simplificado
+    print("\n" + "="*60)
+    print("DEMO COMPLETADO EXITOSAMENTE")
+    print("="*60)
+    
+    # Reporte rápido
+    for discretization_name, discretization_results in results.items():
+        ql_avg = np.mean(discretization_results['qlearning']['evaluation']['total_rewards'])
+        stoch_avg = np.mean(discretization_results['stochastic']['evaluation']['total_rewards'])
+        
+        print(f"\n📊 Resultados - {discretization_name}:")
+        print(f"  ✅ Q-Learning estándar: {ql_avg:.2f}")
+        print(f"  ✅ Stochastic Q-Learning: {stoch_avg:.2f}")
+        
+        if ql_avg != 0:
+            improvement = ((stoch_avg - ql_avg) / abs(ql_avg)) * 100
+            print(f"  📈 Mejora Stochastic: {improvement:.1f}%")
+    
+    print(f"\n🎯 Demo completado con DescentEnv REAL")
+    print(f"💡 Para experimento completo, ejecutar: python3 flan_qlearning_solution.py")
     
     return results
 

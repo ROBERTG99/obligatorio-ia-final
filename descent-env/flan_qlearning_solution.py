@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from contextlib import redirect_stderr, redirect_stdout
 
 # OPTIMIZACIÓN: Usar DescentEnv real para máximo rendimiento
 print("🚀 CONFIGURACIÓN OPTIMIZADA: Priorizando DescentEnv real para máximo rendimiento")
@@ -12,6 +13,7 @@ try:
     print("✅ DescentEnv real cargado exitosamente - MÁXIMO RENDIMIENTO")
 except ImportError as e:
     print(f"⚠️  DescentEnv no disponible: {e}")
+    DescentEnv = None
     BLUESKY_AVAILABLE = False
 
 # MockDescentEnv solo como fallback extremo
@@ -24,10 +26,10 @@ except ImportError:
     MOCK_AVAILABLE = False
 
 # Configuración optimizada: DescentEnv real siempre que sea posible
-if BLUESKY_AVAILABLE:
+if BLUESKY_AVAILABLE and DescentEnv is not None:
     print("🎯 USANDO DESCENTENV REAL - Rendimiento óptimo garantizado")
     # DescentEnv ya importado
-elif MOCK_AVAILABLE:
+elif MOCK_AVAILABLE and MockDescentEnv is not None:
     print("📄 Fallback: Usando MockDescentEnv")
     DescentEnv = MockDescentEnv
 else:
@@ -151,8 +153,8 @@ class QLearningAgent:
         # Contador de visitas para learning rate adaptativo
         self.visits = np.zeros(shape)
         
-        # Reward shaper
-        self.reward_shaper = RewardShaper() if use_reward_shaping else None
+        # Reward shaper - MEJORA: Usar reward shaper agresivo para target -30
+        self.reward_shaper = RewardShaperTarget30() if use_reward_shaping else None
         
         # Epsilon decay
         self.epsilon_min = 0.01
@@ -176,7 +178,7 @@ class QLearningAgent:
     def update(self, state: Tuple[int, int, int, int], 
                action: float, reward: float, 
                next_state: Tuple[int, int, int, int], 
-               done: bool, obs: Dict = None):
+               done: bool, obs: Optional[Dict] = None):
         """Actualiza la tabla Q usando técnicas mejoradas"""
         action_idx = self.discretization.get_action_index(action)
         
@@ -259,8 +261,8 @@ class StochasticQLearningAgent:
         # Contador de visitas
         self.visits = np.zeros(shape)
         
-        # Reward shaper
-        self.reward_shaper = RewardShaper() if use_reward_shaping else None
+        # Reward shaper - MEJORA: Usar reward shaper agresivo para target -30
+        self.reward_shaper = RewardShaperTarget30() if use_reward_shaping else None
         
         # Epsilon decay
         self.epsilon_min = 0.01
@@ -298,7 +300,7 @@ class StochasticQLearningAgent:
     def update(self, state: Tuple[int, int, int, int], 
                action: float, reward: float, 
                next_state: Tuple[int, int, int, int], 
-               done: bool, obs: Dict = None):
+               done: bool, obs: Optional[Dict] = None):
         """Actualiza la tabla Q usando Stochastic Q-Learning mejorado"""
         action_idx = self.discretization.get_action_index(action)
         
@@ -339,7 +341,7 @@ class StochasticQLearningAgent:
 class PerformanceEvaluator:
     """Evaluador de rendimiento del agente"""
     
-    def __init__(self, env: DescentEnv, agent, discretization: DiscretizationScheme):
+    def __init__(self, env: Any, agent, discretization: DiscretizationScheme):
         self.env = env
         self.agent = agent
         self.discretization = discretization
@@ -423,15 +425,17 @@ def train_and_evaluate_agent(params_tuple):
         discretization_dict['action_bins']
     )
     
-    # OPTIMIZACIÓN: Usar DescentEnv real incluso en paralelización si está disponible
-    if BLUESKY_AVAILABLE:
-        print("🚀 Worker usando DescentEnv REAL para máximo rendimiento")
-        env = DescentEnv(render_mode=None)
-    elif MOCK_AVAILABLE:
-        print("📄 Worker usando MockDescentEnv como fallback")
-        env = MockDescentEnv(render_mode=None)
-    else:
-        raise ImportError("❌ No hay entornos disponibles para el worker")
+    # CONFIGURACIÓN OPTIMIZADA: DescentEnv real prioritario para máximo rendimiento
+    with open(os.devnull, 'w') as devnull:
+        with redirect_stdout(devnull), redirect_stderr(devnull):
+            if BLUESKY_AVAILABLE and DescentEnv is not None:
+                env = DescentEnv(render_mode=None)
+                print("🚀 USANDO DESCENTENV REAL - Máximo rendimiento para entrenamiento final")
+            elif MOCK_AVAILABLE and MockDescentEnv is not None:
+                env = MockDescentEnv(render_mode=None)
+                print("📄 Fallback: Usando MockDescentEnv para experimento")
+            else:
+                raise ImportError("❌ Error crítico: No hay entornos disponibles")
     
     # Crear agente
     if agent_type == 'qlearning':
@@ -439,13 +443,13 @@ def train_and_evaluate_agent(params_tuple):
     else:
         agent = StochasticQLearningAgent(discretization, **params)
     
-    # EPISODIOS COMPETITIVOS para búsqueda de hiperparámetros
-    TRAINING_EPISODES = 800  # Aumentado de 200 a 800 (4x más)
+    # OPTIMIZACIÓN TARGET -30: Episodios extensivos para máximo rendimiento
+    TRAINING_EPISODES = 1500  # Entrenamiento intensivo para alcanzar -30
     trainer = QLearningTrainer(env, agent, discretization)
     trainer.train(episodes=TRAINING_EPISODES, verbose=False)
     
-    # Evaluación robusta para mejor estadística
-    EVALUATION_EPISODES = 100  # Aumentado de 50 a 100 (2x más)
+    # Evaluación incluida en los 400 episodios
+    EVALUATION_EPISODES = 50  # Evaluación eficiente
     evaluator = PerformanceEvaluator(env, agent, discretization)
     eval_results = evaluator.evaluate_multiple_episodes(num_episodes=EVALUATION_EPISODES)
     
@@ -463,7 +467,7 @@ def train_and_evaluate_agent(params_tuple):
 class HyperparameterOptimizer:
     """Optimizador de hiperparámetros con paralelización"""
     
-    def __init__(self, env: DescentEnv, discretization: DiscretizationScheme):
+    def __init__(self, env: Any, discretization: DiscretizationScheme):
         self.env = env
         self.discretization = discretization
         
@@ -473,21 +477,21 @@ class HyperparameterOptimizer:
         
         if param_grid is None:
             if agent_type == 'qlearning':
-                # Hiperparámetros optimizados para mejores recompensas
+                # OPTIMIZACIÓN TARGET -30: Grid AGRESIVO para máximo rendimiento
                 param_grid = {
-                    'learning_rate': [0.2, 0.3, 0.4, 0.5],  # Learning rates más altos
-                    'discount_factor': [0.95, 0.98, 0.99],   # Más enfoque en recompensas futuras
-                    'epsilon': [0.2, 0.3, 0.4],              # Más exploración inicial
-                    'use_double_q': [True, False],            # Probar Double Q-Learning
+                    'learning_rate': [0.7, 0.8, 0.9],        # Aprendizaje MUY rápido
+                    'discount_factor': [0.999],               # Máximo peso futuro
+                    'epsilon': [0.05],                        # Exploración mínima final
+                    'use_double_q': [True],                   # Solo la mejor opción
                     'use_reward_shaping': [True]              # Siempre usar reward shaping
                 }
-            else:  # stochastic
+            else:  # stochastic - OPTIMIZACIÓN TARGET -30: Grid AGRESIVO
                 param_grid = {
-                    'learning_rate': [0.2, 0.3, 0.4, 0.5],
-                    'discount_factor': [0.95, 0.98, 0.99],
-                    'epsilon': [0.2, 0.3, 0.4],
-                    'sample_size': [5, 8, 10],
-                    'use_reward_shaping': [True]
+                    'learning_rate': [0.7, 0.8],           # Aprendizaje muy rápido
+                    'discount_factor': [0.999],             # Máximo peso futuro
+                    'epsilon': [0.05],                      # Exploración mínima
+                    'sample_size': [15, 20],               # Muestreo más amplio
+                    'use_reward_shaping': [True]            # Siempre usar
                 }
         
         # Calcular número de combinaciones
@@ -497,13 +501,13 @@ class HyperparameterOptimizer:
         
         print(f"Probando {total_combinations} combinaciones de hiperparámetros con paralelización...")
         
-        # Obtener número de CPUs disponibles (USAR TODOS para máximo rendimiento)
+        # OPTIMIZACIÓN 10K: Usar paralelización balanceada para evitar sobrecarga
         cpu_count = psutil.cpu_count(logical=True)
         if cpu_count is not None:
-            num_cores = cpu_count  # USAR TODOS LOS CORES (cambiado de cpu_count - 1)
+            num_cores = max(1, min(8, cpu_count))  # Máximo 8 cores para evitar sobrecarga
         else:
             num_cores = 2
-        print(f"🚀 MÁXIMO RENDIMIENTO: Usando TODOS los {num_cores} cores de CPU disponibles")
+        print(f"⚡ PARALELIZACIÓN OPTIMIZADA: Usando {num_cores} cores (de {cpu_count} disponibles)")
         
         # Generar todas las combinaciones
         import itertools
@@ -629,7 +633,7 @@ class PrioritizedReplayBuffer:
         self.pos = 0
         
     def add(self, state: Tuple, action: float, reward: float, 
-            next_state: Tuple, done: bool, priority: float = None):
+            next_state: Tuple, done: bool, priority: Optional[float] = None):
         """Agregar experiencia al buffer"""
         if priority is None:
             priority = max(self.priorities) if self.priorities else 1.0
@@ -738,44 +742,135 @@ class RewardShaper:
         self.prev_altitude = None
         self.steps = 0
 
+class RewardShaperTarget30:
+    """Reward shaping EXTREMO específicamente para alcanzar -30"""
+    
+    def __init__(self):
+        self.prev_altitude_error = None
+        self.prev_altitude = None
+        self.prev_action = None
+        self.steps = 0
+        
+    def shape_reward(self, obs: Dict, action: float, reward: float, done: bool) -> float:
+        """Reward shaping agresivo para alcanzar -30"""
+        shaped_reward = reward
+        
+        # Obtener valores actuales
+        current_alt = obs['altitude'][0]
+        target_alt = obs['target_altitude'][0]
+        runway_dist = obs['runway_distance'][0]
+        vz = obs['vz'][0]
+        
+        altitude_error = abs(target_alt - current_alt)
+        
+        # MEJORA 1: Bonificación exponencial MASIVA por precisión
+        if altitude_error < 0.02:
+            shaped_reward += 500.0  # MEGA BONIFICACIÓN
+        elif altitude_error < 0.05:
+            shaped_reward += 200.0
+        elif altitude_error < 0.1:
+            shaped_reward += 100.0
+        elif altitude_error < 0.15:
+            shaped_reward += 50.0
+        elif altitude_error < 0.2:
+            shaped_reward += 25.0
+            
+        # MEJORA 2: Penalización SEVERA por errores grandes
+        if altitude_error > 0.3:
+            shaped_reward -= (altitude_error - 0.3) ** 2 * 1000
+        elif altitude_error > 0.2:
+            shaped_reward -= (altitude_error - 0.2) ** 2 * 500
+            
+        # MEJORA 3: Bonificación MASIVA por mejora
+        if self.prev_altitude_error is not None:
+            improvement = self.prev_altitude_error - altitude_error
+            shaped_reward += improvement * 500  # 5x más agresivo
+            
+        # MEJORA 4: Bonificación por trayectoria suave
+        if self.prev_action is not None:
+            action_smoothness = abs(action - self.prev_action)
+            if action_smoothness < 0.1:
+                shaped_reward += 50.0 * (0.1 - action_smoothness) * 10
+            
+        # MEJORA 5: Velocidad vertical óptima con bonificación agresiva
+        if runway_dist > 0.5:
+            optimal_vz = -0.3 if current_alt > target_alt else 0.3
+        else:
+            optimal_vz = -0.1 if current_alt > target_alt else 0.1
+            
+        vz_error = abs(vz - optimal_vz)
+        shaped_reward += max(0, 20.0 - vz_error * 50)
+        
+        # MEJORA 6: JACKPOT por aterrizaje perfecto
+        if done and runway_dist <= 0:
+            if altitude_error < 0.01:
+                shaped_reward += 2000.0  # ¡¡¡JACKPOT!!!
+            elif altitude_error < 0.02:
+                shaped_reward += 1000.0
+            elif altitude_error < 0.05:
+                shaped_reward += 500.0
+            elif altitude_error < 0.1:
+                shaped_reward += 250.0
+            elif altitude_error < 0.2:
+                shaped_reward += 100.0
+        
+        # Actualizar estado previo
+        self.prev_altitude_error = altitude_error
+        self.prev_altitude = current_alt
+        self.prev_action = action
+        self.steps += 1
+        
+        return shaped_reward
+    
+    def reset(self):
+        """Reset del reward shaper"""
+        self.prev_altitude_error = None
+        self.prev_altitude = None
+        self.prev_action = None
+        self.steps = 0
+
 def main():
     """Función principal para ejecutar el experimento completo"""
     
     print("="*80)
-    print("PROYECTO FLAN - CONFIGURACIÓN DE EPISODIOS COMPETITIVA")
+    print("🎯 PROYECTO FLAN - OPTIMIZACIÓN EXTREMA PARA ALCANZAR RECOMPENSA -30")
     print("="*80)
-    print("📊 BÚSQUEDA DE HIPERPARÁMETROS:")
-    print("   • Entrenamiento por combinación: 800 episodios (4x incremento)")
-    print("   • Evaluación por combinación: 100 episodios")
-    print("\n🎯 ENTRENAMIENTO FINAL:")
-    print("   • Entrenamiento del mejor agente: 5000 episodios (competitivo con 3k+ de otros)")
-    print("   • Evaluación final: 500 episodios (estadísticamente robusto)")
-    print("\n📈 BENCHMARKS DE REFERENCIA:")
-    print("   • Profesor: 50,000 episodios")
-    print("   • Otros compañeros: ~3,000 episodios")
-    print("   • Nuestro objetivo: 5,000 episodios (superando la media)")
-    print("\n🚀 MEJORAS IMPLEMENTADAS:")
-    print("   • Reward Shaping: Activo")
-    print("   • Double Q-Learning: Probando ambas variantes")
-    print("   • Learning Rates optimizados: 0.2-0.5")
-    print("   • Paralelización: 9 cores CPU")
+    print("📊 BÚSQUEDA DE HIPERPARÁMETROS AGRESIVA:")
+    print("   • Q-Learning: 3 combinaciones AGRESIVAS × 1,500 episodios = 4,500")
+    print("   • Stochastic Q-Learning: 4 combinaciones AGRESIVAS × 1,500 episodios = 6,000")
+    print("   • Total búsqueda: 10,500 episodios")
+    print("\n🏋️ ENTRENAMIENTO FINAL MASIVO:")
+    print("   • Q-Learning final: 8,000 episodios (EXTREMO)")
+    print("   • Stochastic Q-Learning final: 8,000 episodios (EXTREMO)")
+    print("   • Evaluación Q-Learning: 1,000 episodios (ROBUSTA)")
+    print("   • Evaluación Stochastic: 1,000 episodios (ROBUSTA)")
+    print("   • TOTAL: 28,500 episodios (OBJETIVO: ALCANZAR -30)")
+    print("\n⏱️  TIEMPO ESTIMADO:")
+    print("   • Con CPU optimizado: ~6-8 horas")
+    print("   • OBJETIVO: Recompensa consistente >= -30")
+    print("\n🚀 MEJORAS EXTREMAS APLICADAS:")
+    print("   • Reward Shaping AGRESIVO (bonificaciones 10x más grandes)")
+    print("   • Learning Rate EXTREMO (0.7-0.9)")
+    print("   • Discount Factor MÁXIMO (0.999)")
+    print("   • Entrenamiento MASIVO (8,000 episodios finales)")
+    print("   • Evaluación EXHAUSTIVA (1,000 episodios)")
     print("="*80)
     
     # CONFIGURACIÓN OPTIMIZADA: DescentEnv real prioritario para máximo rendimiento
-    if BLUESKY_AVAILABLE:
-        env = DescentEnv(render_mode=None)
-        print("🚀 USANDO DESCENTENV REAL - Máximo rendimiento para entrenamiento final")
-    elif MOCK_AVAILABLE:
-        env = MockDescentEnv(render_mode=None)
-        print("📄 Fallback: Usando MockDescentEnv para experimento")
-    else:
-        raise ImportError("❌ Error crítico: No hay entornos disponibles")
+    with open(os.devnull, 'w') as devnull:
+        with redirect_stdout(devnull), redirect_stderr(devnull):
+            if BLUESKY_AVAILABLE and DescentEnv is not None:
+                env = DescentEnv(render_mode=None)
+                print("🚀 USANDO DESCENTENV REAL - Máximo rendimiento para entrenamiento final")
+            elif MOCK_AVAILABLE and MockDescentEnv is not None:
+                env = MockDescentEnv(render_mode=None)
+                print("📄 Fallback: Usando MockDescentEnv para experimento")
+            else:
+                raise ImportError("❌ Error crítico: No hay entornos disponibles")
     
-    # Definir esquemas de discretización
+    # OPTIMIZACIÓN: Solo esquema Media para 10k episodios
     discretization_schemes = [
-        DiscretizationScheme("Fina", 50, 50, 50, 50, 20),
-        DiscretizationScheme("Media", 25, 25, 25, 25, 10),
-        DiscretizationScheme("Gruesa", 10, 10, 10, 10, 5)
+        DiscretizationScheme("Media", 25, 25, 25, 25, 10)
     ]
     
     results_summary = {}
@@ -793,49 +888,51 @@ def main():
         print(f"   • Episodios por combinación: 800 (entrenamiento) + 100 (evaluación)")
         
         # Usar DescentEnv real prioritario para máximo rendimiento
-        if BLUESKY_AVAILABLE:
-            print("🚀 Optimizador usando DescentEnv REAL para máxima precisión")
-            optimizer_env = DescentEnv(render_mode=None)
-        elif MOCK_AVAILABLE:
-            print("📄 Optimizador usando MockDescentEnv como fallback")
-            optimizer_env = MockDescentEnv(render_mode=None)
-        else:
-            raise ImportError("❌ No hay entornos disponibles para optimización")
+        with open(os.devnull, 'w') as devnull:
+            with redirect_stdout(devnull), redirect_stderr(devnull):
+                if BLUESKY_AVAILABLE and DescentEnv is not None:
+                    print("🚀 Optimizador usando DescentEnv REAL para máxima precisión")
+                    optimizer_env = DescentEnv(render_mode=None)
+                elif MOCK_AVAILABLE and MockDescentEnv is not None:
+                    print("📄 Optimizador usando MockDescentEnv como fallback")
+                    optimizer_env = MockDescentEnv(render_mode=None)
+                else:
+                    raise ImportError("❌ No hay entornos disponibles para optimización")
         
         optimizer = HyperparameterOptimizer(optimizer_env, scheme)
         qlearning_results = optimizer.grid_search('qlearning')
         
-        # Entrenar mejor agente Q-Learning con entorno real
-        FINAL_TRAINING_EPISODES = 5000  # COMPETITIVO: Aumentado de 1000 a 5000
+        # Entrenar mejor agente Q-Learning - OPTIMIZACIÓN TARGET -30: Entrenamiento EXTENSIVO  
+        FINAL_TRAINING_EPISODES = 8000  # Entrenamiento masivo para alcanzar -30
         print(f"\n   • Entrenando mejor agente Q-Learning con {FINAL_TRAINING_EPISODES} episodios...")
         best_qlearning_agent = QLearningAgent(scheme, **qlearning_results['best_params'])
         qlearning_trainer = QLearningTrainer(env, best_qlearning_agent, scheme)
         qlearning_trainer.train(episodes=FINAL_TRAINING_EPISODES, verbose=True)
         
-        # Evaluar Q-Learning con MÁS episodios
-        FINAL_EVALUATION_EPISODES = 500  # ROBUSTO: Aumentado de 200 a 500
+        # Evaluación final robusta para TARGET -30
+        FINAL_EVALUATION_EPISODES = 1000  # Evaluación exhaustiva para confirmar -30
         print(f"\n   • Evaluando Q-Learning con {FINAL_EVALUATION_EPISODES} episodios...")
         qlearning_evaluator = PerformanceEvaluator(env, best_qlearning_agent, scheme)
         qlearning_eval = qlearning_evaluator.evaluate_multiple_episodes(num_episodes=FINAL_EVALUATION_EPISODES)
         
-        # Optimizar hiperparámetros para Stochastic Q-Learning (usa MockDescentEnv en paralelo)
+        # Optimizar hiperparámetros para Stochastic Q-Learning
         print("\n2. Optimizando hiperparámetros para Stochastic Q-Learning...")
-        print(f"   • Episodios por combinación: 800 (entrenamiento) + 100 (evaluación)")
+        print(f"   • Episodios por combinación: 400 (entrenamiento) + 50 (evaluación)")
         stochastic_results = optimizer.grid_search('stochastic')
         
-        # Entrenar mejor agente Stochastic Q-Learning con entorno real
+        # Entrenar mejor agente Stochastic Q-Learning 
         print(f"\n   • Entrenando mejor agente Stochastic Q-Learning con {FINAL_TRAINING_EPISODES} episodios...")
         best_stochastic_agent = StochasticQLearningAgent(scheme, **stochastic_results['best_params'])
         stochastic_trainer = QLearningTrainer(env, best_stochastic_agent, scheme)
         stochastic_trainer.train(episodes=FINAL_TRAINING_EPISODES, verbose=True)
         
-        # Evaluar Stochastic Q-Learning con MÁS episodios
+        # Evaluar Stochastic Q-Learning
         print(f"\n   • Evaluando Stochastic Q-Learning con {FINAL_EVALUATION_EPISODES} episodios...")
         stochastic_evaluator = PerformanceEvaluator(env, best_stochastic_agent, scheme)
         stochastic_eval = stochastic_evaluator.evaluate_multiple_episodes(num_episodes=FINAL_EVALUATION_EPISODES)
         
         # Guardar modelos entrenados
-        models_dir = f"models_{scheme.name.lower()}"
+        models_dir = f"models_{scheme.name.lower()}_10k"
         os.makedirs(models_dir, exist_ok=True)
         
         with open(f"{models_dir}/qlearning_agent.pkl", 'wb') as f:
@@ -849,7 +946,7 @@ def main():
         
         print(f"Modelos guardados en {models_dir}/")
         
-        # Guardar resultados
+        # Guardar resultados - OPTIMIZACIÓN 10K: Q-Learning + Stochastic
         results_summary[scheme.name] = {
             'qlearning': {
                 'best_params': qlearning_results['best_params'],
@@ -865,9 +962,9 @@ def main():
             }
         }
     
-    # Guardar resultados
-    with open('flan_results.json', 'w') as f:
-        # Convertir numpy arrays a listas para serialización JSON
+    # Guardar resultados - OPTIMIZACIÓN 10K
+    with open('flan_results_10k.json', 'w') as f:
+        # Convertir numpy arrays a listas para serialización JSON - OPTIMIZACIÓN 10K
         serializable_results = {}
         for scheme_name, scheme_results in results_summary.items():
             serializable_results[scheme_name] = {}
@@ -878,6 +975,28 @@ def main():
                     'evaluation': {k: [float(x) for x in v] for k, v in agent_results['evaluation'].items()},
                     'training_rewards': [float(x) for x in agent_results['training_rewards']]
                 }
+        
+        # Agregar información de optimización
+        serializable_results['experiment_info'] = {
+            'optimization': 'TARGET_30_EXTREME_OPTIMIZATION',
+            'objective': 'Alcanzar recompensa consistente >= -30',
+            'total_episodes': 28500,
+            'estimated_time_hours': '6-8',
+            'schemes_used': 1,
+            'agents_used': ['qlearning', 'stochastic_qlearning'],
+            'cpu_optimized': True,
+            'hyperparameter_combinations': {
+                'qlearning': 3,
+                'stochastic': 4
+            },
+            'extreme_optimizations': [
+                'RewardShaperTarget30 - bonificaciones 10x más grandes',
+                'Learning rates agresivos (0.7-0.9)',
+                'Discount factor máximo (0.999)',
+                'Entrenamiento masivo (8,000 episodios finales)',
+                'Evaluación exhaustiva (1,000 episodios)'
+            ]
+        }
         json.dump(serializable_results, f, indent=2)
     
     # Generar reporte
